@@ -21,10 +21,10 @@ renomeando_pastas()
 os.rmdir('./download')
 
 # Listando pastas fazermos a verificacao 
-lista_pastas = ([pasta for pasta in os.listdir("./data")])
+pastas_para_conversao = ([pasta for pasta in os.listdir("./data")])
 
 
-for pasta in lista_pastas:
+for pasta in pastas_para_conversao:
     path = verifica_pasta(pasta)
     lista_arquivos = ([arquivo for arquivo in os.listdir(f"{path}")])
     for arquivo in lista_arquivos:
@@ -32,10 +32,12 @@ for pasta in lista_pastas:
             try: 
                 conversao_parquet_csv_sep_ponto_e_virgula(path, arquivo, pasta)
             except:
-                print("É preciso utilizar ''|' como separador")
+                print("É preciso utilizar '|' como separador")
                 try:
                     conversao_parquet_csv_sep_barra(path, arquivo, pasta)                    
                 except:
                     print('Error!')
 
 shutil.rmtree('./data')
+
+enviar_s3('nome_do_bucket')

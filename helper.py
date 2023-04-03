@@ -5,6 +5,7 @@ import os
 import requests
 import os
 import io
+import boto3
 
 # Criando o SparkSession
 spark = SparkSession\
@@ -29,7 +30,7 @@ def baixando_e_extraindo_arquivos(anos_para_download):
 
 # Renomeia as pastas que estavam com caracteres fora do utf-8
 def renomeando_pastas():
-    lista_pastas = ([name for name in os.listdir("./download")])
+    lista_pastas = ([pasta for pasta in os.listdir("./download")])
     for pasta in lista_pastas:
         os.rename(f"./download/{pasta}", f"./data/{pasta[-4:]}")
 
@@ -70,3 +71,20 @@ def conversao_parquet_csv_sep_barra(path, arquivo, pasta):
     df = df.select([f.col(coluna).alias(coluna.lower()) for coluna in df.columns])
 
     df.write.parquet(f"to_parquet/{pasta}/{arquivo}", mode='overwrite')
+
+def enviar_s3(nome_do_bucket):
+    s3 = boto3.client('s3')
+    bucket_name = nome_do_bucket
+
+    lista_anos = ([ano for ano in os.listdir("./to_parquet/")])
+    for ano in lista_anos:
+        lista_arquivos_para_s3 = ([arquivo for arquivo in os.listdir(f"./to_parquet/{ano}")])
+        for arquivo in lista_arquivos_para_s3:
+            file_path = f"./to_parquet/{ano}/{arquivo}"
+            key_name = f"{ano}/{arquivo}"
+            
+            s3.upload_file(
+                        Filename = file_path, 
+                        Bucket = bucket_name, 
+                        Key = key_name
+            )
