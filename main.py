@@ -41,3 +41,5 @@ for pasta in pastas_para_conversao:
 shutil.rmtree('./data')
 
 enviar_s3('nome_do_bucket')
+
+spark.stop()
