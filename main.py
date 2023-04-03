@@ -4,7 +4,7 @@ import shutil
 # Definindo os anos que serao selecionados para download
 anos_para_download = []
 ano = 2021
-ano_final = 1996
+ano_final = 1995
 
 
 while ano >= ano_final:
