@@ -57,7 +57,7 @@ def conversao_parquet_csv_sep_ponto_e_virgula(path, arquivo, pasta):
 
     df = df.select([f.col(coluna).alias(coluna.lower()) for coluna in df.columns])
 
-    df.write.parquet(f"to_parquet/{pasta}/{arquivo}", mode='overwrite')
+    df.write.parquet(f"to_parquet/{pasta}/{arquivo.replace('.CSV','')}", mode='overwrite')
 
 def conversao_parquet_csv_sep_barra(path, arquivo, pasta):
     params = {'header':True, 'inferSchema':True, 'sep':'|'}
@@ -70,21 +70,28 @@ def conversao_parquet_csv_sep_barra(path, arquivo, pasta):
 
     df = df.select([f.col(coluna).alias(coluna.lower()) for coluna in df.columns])
 
-    df.write.parquet(f"to_parquet/{pasta}/{arquivo}", mode='overwrite')
+    df.write.parquet(f"to_parquet/{pasta}/{arquivo.replace('.CSV','')}", mode='overwrite')
 
 def enviar_s3(nome_do_bucket):
     s3 = boto3.client('s3')
+    
     bucket_name = nome_do_bucket
 
     lista_anos = ([ano for ano in os.listdir("./to_parquet/")])
     for ano in lista_anos:
         lista_arquivos_para_s3 = ([arquivo for arquivo in os.listdir(f"./to_parquet/{ano}")])
         for arquivo in lista_arquivos_para_s3:
-            file_path = f"./to_parquet/{ano}/{arquivo}"
-            key_name = f"{ano}/{arquivo}"
+            file_list = ([file for file in os.listdir(f"./to_parquet/{ano}/{arquivo}")])
+            for file in file_list:
+                file_path = f'./to_parquet/{ano}/{arquivo}/{file}'
+                key_name = f'{ano}/{arquivo}/{file}' 
+                try:
+                    s3.upload_file(
+                                    Filename = file_path,
+                                    Bucket = bucket_name, 
+                                    Key = key_name
+                    )
+                except:
+                    return print("Erro")
+
             
-            s3.upload_file(
-                        Filename = file_path, 
-                        Bucket = bucket_name, 
-                        Key = key_name
-            )

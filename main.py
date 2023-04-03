@@ -4,7 +4,7 @@ import shutil
 # Definindo os anos que serao selecionados para download
 anos_para_download = []
 ano = 2021
-ano_final = 1995
+ano_final = 1996
 
 
 while ano >= ano_final:
@@ -40,6 +40,8 @@ for pasta in pastas_para_conversao:
 
 shutil.rmtree('./data')
 
-enviar_s3('nome_do_bucket')
+enviar_s3('a3-case-avaliacao')
+
+shutil.rmtree('./to_parquet')
 
 spark.stop()
