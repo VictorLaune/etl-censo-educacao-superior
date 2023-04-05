@@ -1,47 +1,36 @@
 from helper import *
+from pyspark.sql import SparkSession
 import shutil
 
-# Definindo os anos que serao selecionados para download
-anos_para_download = []
-ano = 2021
-ano_final = 1995
+# Defining the years that will be selected for download
+years_list = list(range(1995,2022))
+print("Years we will use for extraction:" + str(years_list) + "\n")
 
+# Downloading and extracting files
+url = "https://download.inep.gov.br/microdados/microdados_censo_da_educacao_superior_"
+downloading_and_extracting_files(years_list, url)
 
-while ano >= ano_final:
-    anos_para_download.append(str(ano))
-    ano -= 1
+# Creating the spark session
+spark = SparkSession\
+   .builder\
+   .master("local")\
+   .appName("convert_to_parquet")\
+   .getOrCreate()
 
-print("Anos que iremos utilizar para a extração:" + str(anos_para_download) + "\n")
+for folder in years_list:
+    path = verify_folder(folder)
 
-baixando_e_extraindo_arquivos(anos_para_download)
+    files_list = ([file for file in os.listdir(f"{path}")])
+    for file in files_list:
+        if(file[-3:] == 'CSV' or file[-3:] == 'csv'):
+            if ("DADOS" in path):
+                convert_to_parquet(path, file, folder, sep='|')
+            elif ("dados" in path):
+                convert_to_parquet(path, file, folder, sep=';')
 
-# Criando pasta data, renomeando arquivos não utf-8 e removendo pasta download
-os.mkdir("./data")
-renomeando_pastas()
-os.rmdir('./download')
-
-# Listando pastas fazermos a verificacao 
-pastas_para_conversao = ([pasta for pasta in os.listdir("./data")])
-
-
-for pasta in pastas_para_conversao:
-    path = verifica_pasta(pasta)
-    lista_arquivos = ([arquivo for arquivo in os.listdir(f"{path}")])
-    for arquivo in lista_arquivos:
-        if(arquivo[-3:] == 'CSV' or arquivo[-3:] == 'csv'):
-            try: 
-                conversao_parquet_csv_sep_ponto_e_virgula(path, arquivo, pasta)
-            except:
-                print("É preciso utilizar '|' como separador")
-                try:
-                    conversao_parquet_csv_sep_barra(path, arquivo, pasta)                    
-                except:
-                    print('Error!')
+upload_s3('a3-case-avaliacao', years_list)
 
 shutil.rmtree('./data')
-
-enviar_s3('a3-case-avaliacao')
-
 shutil.rmtree('./to_parquet')
 
 spark.stop()

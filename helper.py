@@ -1,89 +1,72 @@
-from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
+from main import spark
 from zipfile import ZipFile
 import requests
 import os
 import io
 import boto3
 
-# Criando o SparkSession
-spark = SparkSession\
-   .builder\
-   .master("local")\
-   .appName("convert_to_parquet")\
-   .getOrCreate()
-
-# Automatiza o download dos arquivos
-def baixando_e_extraindo_arquivos(anos_para_download):
-    for ano in anos_para_download:
-        print("\nRealizando download dos dados do ano: " + ano + "\n")
-        url = (
-            "https://download.inep.gov.br/microdados/microdados_censo_da_educacao_superior_" + ano + ".zip"
-        )
+def downloading_and_extracting_files(years_for_download, url):
+    """
+    Text
+    """
+    for year in years_for_download:
+        print("\nDownloading the data of the year: " + str(year) + "\n")
+        url_for_download = (url + str(year) + ".zip")
         try:
-            solicitacao = requests.get(url, verify=False)
-            dado_zipado = ZipFile(io.BytesIO(solicitacao.content))
-            dado_zipado.extractall("./download/")
+            request = requests.get(url_for_download, verify=False)
         except:
-            return
+            print('Some error! - arrumar isso aqui.')
+        else:
+            data_zip = ZipFile(io.BytesIO(request.content))
+            data_zip.extractall("./data")
 
-# Renomeia as pastas que estavam com caracteres fora do utf-8
-def renomeando_pastas():
-    lista_pastas = ([pasta for pasta in os.listdir("./download")])
-    for pasta in lista_pastas:
-        os.rename(f"./download/{pasta}", f"./data/{pasta[-4:]}")
+            # Renomeia as pastas que estavam com caracteres fora do utf-8
+            lista_pastas = ([folder for folder in os.listdir("./data")])
+            for folder in lista_pastas:
+                os.rename(f"./data/{folder}", f"./data/{folder[-4:]}")
 
-# Verificar se a pasta possui o nome DADOS ou dados
-def verifica_pasta(nome_da_pasta):
+def verify_folder(folder):
+    """
+    Text
+    """
     try:
-        path = f"./data/{nome_da_pasta}/dados"
+        path = f"./data/{folder}/dados"
     except:
-        print("Pasta com o nome 'DADOS'")
+        print("Trying with 'DADOS'\n")
         try:
-            path = f"./data/{nome_da_pasta}/DADOS"
+            path = f"./data/{folder}/DADOS"
         except:
-            print("Error!")
+            print("Folder without 'dados' or 'DADOS'\n")
     return path
 
-def conversao_parquet_csv_sep_ponto_e_virgula(path, arquivo, pasta):
-    params = {'header':True, 'inferSchema':True, 'sep':';'}
-    path_csv = path + '/' + arquivo
+def convert_to_parquet(path, file, folder, sep):
+    """
+    Text
+    """
+    params = {'header':True, 'inferSchema':True, 'sep': sep}
+    path_csv = path + '/' + file
     df = (
         spark
         .read
         .csv(path_csv, **params)
         )
 
-    df = df.select([f.col(coluna).alias(coluna.lower()) for coluna in df.columns])
+    df = df.select([f.col(column).alias(column.lower()) for column in df.columns])
+    df.write.parquet(f"parquet_files/{folder}/{file.replace('.CSV','')}", mode='overwrite')
 
-    df.write.parquet(f"to_parquet/{pasta}/{arquivo.replace('.CSV','')}", mode='overwrite')
-
-def conversao_parquet_csv_sep_barra(path, arquivo, pasta):
-    params = {'header':True, 'inferSchema':True, 'sep':'|'}
-    path_csv = path + '/' + arquivo
-    df = (
-        spark
-        .read
-        .csv(path_csv, **params)
-        )
-
-    df = df.select([f.col(coluna).alias(coluna.lower()) for coluna in df.columns])
-
-    df.write.parquet(f"to_parquet/{pasta}/{arquivo.replace('.CSV','')}", mode='overwrite')
-
-def enviar_s3(nome_do_bucket):
+def upload_s3(bucket_name, years_list):
+    """
+    Text
+    """
     s3 = boto3.client('s3')
-    
-    bucket_name = nome_do_bucket
-
-    lista_anos = ([ano for ano in os.listdir("./to_parquet/")])
-    for ano in lista_anos:
-        lista_arquivos_para_s3 = ([arquivo for arquivo in os.listdir(f"./to_parquet/{ano}")])
-        for arquivo in lista_arquivos_para_s3:
-            file_list = ([file for file in os.listdir(f"./to_parquet/{ano}/{arquivo}")])
+    for year in years_list:
+        folders_to_upload_s3 = ([folder for folder in os.listdir(f"./to_parquet/{year}")])
+        for folder in folders_to_upload_s3:
+            file_list = ([file for file in os.listdir(f"./to_parquet/{year}/{folder}")])
             for file in file_list:
-                file_path = f'./to_parquet/{ano}/{arquivo}/{file}'
-                key_name = f'{ano}/{arquivo}/{file}' 
+                file_path = f'./to_parquet/{year}/{folder}/{file}'
+                key_name = f'{year}/{folder}/{file}' 
                 try:
                     s3.upload_file(
                                     Filename = file_path,
@@ -91,6 +74,6 @@ def enviar_s3(nome_do_bucket):
                                     Key = key_name
                     )
                 except:
-                    return print("Erro")
-
-            
+                    return print("Error") ## LOOK AT HERE
+                else:
+                    print(f'Successfully uploaded: {file}')
