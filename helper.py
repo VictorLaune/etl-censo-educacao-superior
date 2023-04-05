@@ -1,10 +1,11 @@
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
-from main import spark
 from zipfile import ZipFile
 import requests
 import os
 import io
 import boto3
+import csv
 
 def downloading_and_extracting_files(years_for_download, url):
     """
@@ -26,21 +27,7 @@ def downloading_and_extracting_files(years_for_download, url):
             for folder in lista_pastas:
                 os.rename(f"./data/{folder}", f"./data/{folder[-4:]}")
 
-def verify_folder(folder):
-    """
-    Text
-    """
-    try:
-        path = f"./data/{folder}/dados"
-    except:
-        print("Trying with 'DADOS'\n")
-        try:
-            path = f"./data/{folder}/DADOS"
-        except:
-            print("Folder without 'dados' or 'DADOS'\n")
-    return path
-
-def convert_to_parquet(path, file, folder, sep):
+def convert_to_parquet(spark, path, file, folder, sep):
     """
     Text
     """
@@ -61,11 +48,11 @@ def upload_s3(bucket_name, years_list):
     """
     s3 = boto3.client('s3')
     for year in years_list:
-        folders_to_upload_s3 = ([folder for folder in os.listdir(f"./to_parquet/{year}")])
+        folders_to_upload_s3 = ([folder for folder in os.listdir(f"./parquet_files/{year}")])
         for folder in folders_to_upload_s3:
-            file_list = ([file for file in os.listdir(f"./to_parquet/{year}/{folder}")])
+            file_list = ([file for file in os.listdir(f"./parquet_files/{year}/{folder}")])
             for file in file_list:
-                file_path = f'./to_parquet/{year}/{folder}/{file}'
+                file_path = f'./parquet_files/{year}/{folder}/{file}'
                 key_name = f'{year}/{folder}/{file}' 
                 try:
                     s3.upload_file(
