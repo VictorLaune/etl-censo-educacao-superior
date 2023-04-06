@@ -5,11 +5,12 @@ import requests
 import os
 import io
 import boto3
-import csv
 
 def downloading_and_extracting_files(years_for_download, url):
     """
-    Text
+    Download, extract the zip files that will be received and rename the folders.\n
+    Receive a list of the years that will be used for download and the URL.\n
+    Creates a folder called "data" with the files divided by year.
     """
     for year in years_for_download:
         print("\nDownloading the data of the year: " + str(year) + "\n")
@@ -17,19 +18,25 @@ def downloading_and_extracting_files(years_for_download, url):
         try:
             request = requests.get(url_for_download, verify=False)
         except:
-            print('Some error! - arrumar isso aqui.')
+            print('Some error!')
         else:
             data_zip = ZipFile(io.BytesIO(request.content))
             data_zip.extractall("./data")
 
-            # Renomeia as pastas que estavam com caracteres fora do utf-8
-            lista_pastas = ([folder for folder in os.listdir("./data")])
-            for folder in lista_pastas:
+            # Rename folders
+            folders_list = ([folder for folder in os.listdir("./data")])
+            for folder in folders_list:
                 os.rename(f"./data/{folder}", f"./data/{folder[-4:]}")
 
 def convert_to_parquet(spark, path, file, folder, sep):
     """
-    Text
+    Converts CSV files to parquet files.\n
+    Need to receive the variable created by SparkSession, a path that indicates 
+    the folder where the CSV files are, the file name, folder name, and csv file separator.\n
+    Path, file, folder and separator, must be passed as string type.\n
+    It will create a folder called "parquet_files" that will contain the folders with the same 
+    names that were passed, with the CSV files converted to Parquet files with the name of all 
+    the columns in lowercase.
     """
     params = {'header':True, 'inferSchema':True, 'sep': sep}
     path_csv = path + '/' + file
@@ -44,7 +51,11 @@ def convert_to_parquet(spark, path, file, folder, sep):
 
 def upload_s3(bucket_name, years_list):
     """
-    Text
+    Sends the files to an aws s3 bucket.\n
+    It must be given a bucket name and the list of years used 
+    for download for it to use in the path and find the parquet files for upload.\n
+    Creates folders with the names of the years used for download with the parquet files inside them. 
+    Print in the terminal if the upload was successful.
     """
     s3 = boto3.client('s3')
     for year in years_list:
@@ -61,6 +72,6 @@ def upload_s3(bucket_name, years_list):
                                     Key = key_name
                     )
                 except:
-                    return print("Error") ## LOOK AT HERE
+                    print("Error") 
                 else:
                     print(f'Successfully uploaded: {file}')
